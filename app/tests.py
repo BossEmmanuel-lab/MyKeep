@@ -217,3 +217,8 @@ class MyKeepCoreTests(TestCase):
             self.assertTrue(ok)
         blocked, _ = check_rate_limit('test_scope', '127.0.0.1', limit=3, window_seconds=60)
         self.assertFalse(blocked)
+
+    def test_health_endpoint(self):
+        resp = self.client.get(reverse('health'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {'status': 'ok', 'app': 'MyKeep'})
