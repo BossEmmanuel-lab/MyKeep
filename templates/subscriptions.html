@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% block title %}Subscriptions · MyKeep{% endblock %}
+{% block header_action %}
+<button type="button" onclick="openSubscriptionModal()" class="apple-btn inline-flex items-center space-x-1.5 bg-[#0071E3] dark:bg-[#0A84FF] text-white px-4 py-1.5 rounded-full text-xs font-medium shadow-sm hover:opacity-95">
+  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  <span>New Subscription</span>
+</button>
+{% endblock %}
+{% block content %}
+
+<section class="apple-card p-4 mb-6 animate-spring-in stagger-1">
+  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 flex-1">
+      <input type="text" name="q" value="{{ filter_q }}" placeholder="Search subscriptions..." class="apple-input h-10 px-3.5 text-sm">
+      <select name="category" onchange="this.form.submit()" class="apple-input h-10 px-3 text-sm">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat.id }}" {% if filter_category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="cycle" onchange="this.form.submit()" class="apple-input h-10 px-3 text-sm">
+        <option value="">All Cycles</option>
+        <option value="1" {% if filter_cycle == '1' %}selected{% endif %}>Daily</option>
+        <option value="2" {% if filter_cycle == '2' %}selected{% endif %}>Weekly</option>
+        <option value="3" {% if filter_cycle == '3' %}selected{% endif %}>Monthly</option>
+        <option value="4" {% if filter_cycle == '4' %}selected{% endif %}>Yearly</option>
+        <option value="5" {% if filter_cycle == '5' %}selected{% endif %}>One-Time</option>
+      </select>
+      <select name="status" onchange="this.form.submit()" class="apple-input h-10 px-3 text-sm">
+        <option value="">All Status</option>
+        <option value="active" {% if filter_status == 'active' %}selected{% endif %}>Active</option>
+        <option value="manual" {% if filter_status == 'manual' %}selected{% endif %}>Manual Renewal</option>
+        <option value="inactive" {% if filter_status == 'inactive' %}selected{% endif %}>Paused</option>
+      </select>
+      <select name="sort" onchange="this.form.submit()" class="apple-input h-10 px-3 text-sm">
+        <option value="next_payment" {% if filter_sort == 'next_payment' %}selected{% endif %}>Sort: Next Payment</option>
+        <option value="price_desc" {% if filter_sort == 'price_desc' %}selected{% endif %}>Sort: Price (High to Low)</option>
+        <option value="price_asc" {% if filter_sort == 'price_asc' %}selected{% endif %}>Sort: Price (Low to High)</option>
+        <option value="name" {% if filter_sort == 'name' %}selected{% endif %}>Sort: Name</option>
+      </select>
+    </form>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum whitespace-nowrap px-2">
+      <strong class="text-[#1D1D1F] dark:text-[#F5F5F7]">{{ active_count }}</strong> active · <strong class="text-[#1D1D1F] dark:text-[#F5F5F7]">{{ formatted_monthly_total }}</strong>/mo · {{ formatted_yearly_projection }}/yr
+    </div>
+  </div>
+</section>
+
+<form id="bulk-subs-form" method="post" action="{% url 'subscriptions_bulk_action' %}" class="hidden">
+  {% csrf_token %}
+</form>
+
+<section class="apple-card overflow-hidden animate-spring-in stagger-2">
+  <div class="px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between text-xs">
+    <div class="flex items-center space-x-2.5">
+      <select name="bulk_action" form="bulk-subs-form" class="apple-input h-8 px-3 text-xs rounded-lg">
+        <option value="">Bulk Action...</option>
+        <option value="pause">Pause Selected</option>
+        <option value="resume">Resume Selected</option>
+        <option value="enable_auto_renew">Enable Auto-Renew</option>
+        <option value="disable_auto_renew">Set Manual Renewal</option>
+        <option value="delete">Delete Selected</option>
+      </select>
+      <button type="submit" form="bulk-subs-form" class="apple-btn h-8 px-3.5 rounded-lg bg-black/[0.05] dark:bg-white/[0.08] font-medium hover:bg-black/[0.09] dark:hover:bg-white/[0.12]">Apply</button>
+    </div>
+    <span class="text-[#6E6E73] dark:text-[#A1A1A6] tnum">{{ subscriptions|length }} shown</span>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="border-b border-black/[0.06] dark:border-white/[0.08] text-xs text-[#6E6E73] dark:text-[#A1A1A6]">
+          <th class="py-3.5 pl-5 pr-2 w-8">
+            <input type="checkbox" onclick="document.querySelectorAll('.sub-row-check').forEach(c => c.checked = this.checked)" class="rounded-md border-black/20 dark:border-white/20 bg-transparent text-[#0071E3]">
+          </th>
+          <th class="py-3.5 px-4 font-medium">Service</th>
+          <th class="py-3.5 px-4 font-medium">Category</th>
+          <th class="py-3.5 px-4 font-medium">Billing Cycle</th>
+          <th class="py-3.5 px-4 font-medium">Next Payment</th>
+          <th class="py-3.5 px-4 font-medium">Payment Method</th>
+          <th class="py-3.5 px-4 font-medium text-right">Price</th>
+          <th class="py-3.5 px-5 font-medium text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-black/[0.05] dark:divide-white/[0.06] text-sm">
+        {% for sub in subscriptions %}
+        <tr class="{% if sub.inactive %}opacity-50{% endif %} hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
+          <td class="py-4 pl-5 pr-2">
+            <input type="checkbox" name="selected_ids" value="{{ sub.id }}" form="bulk-subs-form" class="sub-row-check rounded-md border-black/20 dark:border-white/20 bg-transparent text-[#0071E3]">
+          </td>
+          <td class="py-4 px-4">
+            <div class="flex items-center space-x-3.5">
+              {% if sub.logo_url %}
+              <img src="{{ sub.logo_url }}" alt="{{ sub.name }}" class="w-10 h-10 object-contain rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#202024] p-1">
+              {% else %}
+              <div class="w-10 h-10 rounded-xl bg-[#F2F2F7] dark:bg-[#202024] border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center text-xs font-semibold font-mono">{{ sub.initials }}</div>
+              {% endif %}
+              <div>
+                <div class="font-medium">
+                  {% if sub.url %}
+                  <a href="{{ sub.url }}" target="_blank" rel="noopener noreferrer" class="hover:text-[#0071E3] dark:hover:text-[#0A84FF] transition-colors">{{ sub.name }}</a>
+                  {% else %}
+                  {{ sub.name }}
+                  {% endif %}
+                </div>
+                <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">
+                  {% if sub.inactive %}Paused{% elif not sub.auto_renew %}Manual renewal{% else %}Auto-renew{% endif %}
+                  {% if sub.payer %} · {{ sub.payer.name }}{% endif %}
+                  {% if sub.cancellation_date %} · Cancel by {{ sub.cancellation_date|date:"M d, Y" }}{% endif %}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="py-4 px-4 text-[#6E6E73] dark:text-[#A1A1A6]">{{ sub.category.name|default:"—" }}</td>
+          <td class="py-4 px-4 text-[#6E6E73] dark:text-[#A1A1A6]">{{ sub.cycle_label }}</td>
+          <td class="py-4 px-4 tnum">{{ sub.next_payment|date:"M d, Y" }}</td>
+          <td class="py-4 px-4 text-[#6E6E73] dark:text-[#A1A1A6]">{{ sub.payment_method.name|default:"—" }}</td>
+          <td class="py-4 px-4 text-right tnum">
+            <div class="font-semibold">{{ sub.formatted_price }}</div>
+            {% if sub.is_different_currency and user_settings.show_original_price %}
+            <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">{{ sub.formatted_converted_price }}</div>
+            {% elif user_settings.show_monthly_price and sub.cycle != 3 %}
+            <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">{{ sub.formatted_monthly_equivalent }}/mo</div>
+            {% endif %}
+          </td>
+          <td class="py-4 px-5 text-right whitespace-nowrap">
+            <div class="inline-flex items-center space-x-2 text-xs">
+              <form method="post" action="{% url 'subscription_renew' sub.id %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="apple-btn px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] font-medium">Renew</button>
+              </form>
+              <button
+                type="button"
+                onclick="editSubscription(this)"
+                data-id="{{ sub.id }}"
+                data-name="{{ sub.name|escapejs }}"
+                data-price="{{ sub.price }}"
+                data-currency="{{ sub.currency_id|default:'' }}"
+                data-cycle="{{ sub.cycle }}"
+                data-frequency="{{ sub.frequency }}"
+                data-next-payment="{{ sub.next_payment|date:'Y-m-d' }}"
+                data-cancellation-date="{{ sub.cancellation_date|date:'Y-m-d'|default:'' }}"
+                data-category="{{ sub.category_id|default:'' }}"
+                data-payer="{{ sub.payer_id|default:'' }}"
+                data-payment-method="{{ sub.payment_method_id|default:'' }}"
+                data-logo-url="{{ sub.logo_url|escapejs }}"
+                data-url="{{ sub.url|escapejs }}"
+                data-notes="{{ sub.notes|escapejs }}"
+                data-auto-renew="{{ sub.auto_renew|yesno:'true,false' }}"
+                data-inactive="{{ sub.inactive|yesno:'true,false' }}"
+                data-notify="{{ sub.notify|yesno:'true,false' }}"
+                class="apple-btn px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] font-medium">Edit</button>
+              <form method="post" action="{% url 'subscription_clone' sub.id %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="apple-btn px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] font-medium">Clone</button>
+              </form>
+              <form method="post" action="{% url 'subscription_delete' sub.id %}" class="inline" onsubmit="return confirm('Delete {{ sub.name|escapejs }}?');">
+                {% csrf_token %}
+                <button type="submit" class="apple-btn px-2.5 py-1 rounded-lg text-[#FF3B30] dark:text-[#FF453A] hover:bg-[#FF3B30]/10 font-medium">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="py-12 px-6 text-center text-sm text-[#6E6E73] dark:text-[#A1A1A6]">
+            No subscriptions found. Click "+ New Subscription" to add one.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div id="subscription-modal" class="hidden fixed inset-0 z-50 bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="w-full max-w-lg apple-card p-6 max-h-[90vh] overflow-y-auto animate-modal-card">
+    <div class="flex items-center justify-between pb-4 mb-5 border-b border-black/[0.06] dark:border-white/[0.08]">
+      <h2 id="sub-modal-title" class="text-base font-semibold tracking-tight">New Subscription</h2>
+      <button type="button" onclick="closeSubscriptionModal()" class="apple-btn w-7 h-7 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-xs text-[#6E6E73] dark:text-[#A1A1A6]">✕</button>
+    </div>
+
+    <form method="post" action="{% url 'subscription_save' %}" enctype="multipart/form-data" class="space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="subscription_id" id="sub-id" value="">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Service Name</label>
+          <input type="text" name="name" id="sub-name" required class="apple-input w-full h-10 px-3.5 text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Price</label>
+          <input type="number" step="0.01" name="price" id="sub-price" required class="apple-input w-full h-10 px-3.5 text-sm tnum">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Currency</label>
+          <select name="currency_id" id="sub-currency" class="apple-input w-full h-10 px-3 text-sm">
+            {% for curr in currencies %}
+            <option value="{{ curr.id }}" {% if main_currency and curr.id == main_currency.id %}selected{% endif %}>{{ curr.code }} ({{ curr.symbol }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Billing Cycle</label>
+          <select name="cycle" id="sub-cycle" class="apple-input w-full h-10 px-3 text-sm">
+            <option value="1">Daily</option>
+            <option value="2">Weekly</option>
+            <option value="3" selected>Monthly</option>
+            <option value="4">Yearly</option>
+            <option value="5">One-Time</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Every N Cycles</label>
+          <input type="number" min="1" max="36" name="frequency" id="sub-frequency" value="1" class="apple-input w-full h-10 px-3.5 text-sm tnum">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Next Payment Date</label>
+          <input type="date" name="next_payment" id="sub-next-payment" required class="apple-input w-full h-10 px-3.5 text-sm tnum">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Cancellation Reminder Date</label>
+          <input type="date" name="cancellation_date" id="sub-cancellation-date" class="apple-input w-full h-10 px-3.5 text-sm tnum">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Category</label>
+          <select name="category_id" id="sub-category" class="apple-input w-full h-10 px-3 text-sm">
+            <option value="">None</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Payment Method</label>
+          <select name="payment_method_id" id="sub-payment-method" class="apple-input w-full h-10 px-3 text-sm">
+            <option value="">None</option>
+            {% for pm in payment_methods %}
+            <option value="{{ pm.id }}">{{ pm.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Paid By</label>
+          <select name="payer_id" id="sub-payer" class="apple-input w-full h-10 px-3 text-sm">
+            <option value="">Default</option>
+            {% for member in household_members %}
+            <option value="{{ member.id }}">{{ member.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Service URL</label>
+          <input type="url" name="url" id="sub-url" placeholder="https://..." class="apple-input w-full h-10 px-3.5 text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Logo URL (optional)</label>
+          <input type="text" name="logo_url" id="sub-logo-url" placeholder="https://..." class="apple-input w-full h-10 px-3.5 text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Or Upload Logo File</label>
+          <input type="file" name="logo_file" accept="image/*" class="w-full text-xs text-[#6E6E73] dark:text-[#A1A1A6] file:mr-3 file:py-1.5 file:px-3 file:border-0 file:rounded-lg file:bg-black/[0.06] dark:file:bg-white/[0.08] file:text-[#1D1D1F] dark:file:text-[#F5F5F7]">
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Notes</label>
+          <textarea name="notes" id="sub-notes" rows="2" class="apple-input w-full p-3 text-sm"></textarea>
+        </div>
+
+        <div class="sm:col-span-2 flex flex-wrap items-center gap-6 pt-1 text-xs">
+          <label class="inline-flex items-center space-x-2">
+            <input type="checkbox" name="auto_renew" id="sub-auto-renew" checked class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Auto-renews</span>
+          </label>
+          <label class="inline-flex items-center space-x-2">
+            <input type="checkbox" name="notify" id="sub-notify" checked class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Enable notifications</span>
+          </label>
+          <label class="inline-flex items-center space-x-2">
+            <input type="checkbox" name="inactive" id="sub-inactive" class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Paused / Inactive</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-4 border-t border-black/[0.06] dark:border-white/[0.08]">
+        <button type="button" onclick="closeSubscriptionModal()" class="apple-btn px-4 py-2 text-xs font-medium rounded-full bg-black/[0.05] dark:bg-white/[0.08]">Cancel</button>
+        <button type="submit" class="apple-btn px-5 py-2 text-xs font-medium bg-[#0071E3] dark:bg-[#0A84FF] text-white rounded-full shadow-sm">Save Subscription</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openSubscriptionModal() {
+    document.getElementById('sub-modal-title').textContent = 'New Subscription';
+    document.getElementById('sub-id').value = '';
+    document.getElementById('sub-name').value = '';
+    document.getElementById('sub-price').value = '';
+    document.getElementById('sub-cycle').value = '3';
+    document.getElementById('sub-frequency').value = '1';
+    document.getElementById('sub-next-payment').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('sub-cancellation-date').value = '';
+    document.getElementById('sub-category').value = '';
+    document.getElementById('sub-payment-method').value = '';
+    document.getElementById('sub-payer').value = '';
+    document.getElementById('sub-logo-url').value = '';
+    document.getElementById('sub-url').value = '';
+    document.getElementById('sub-notes').value = '';
+    document.getElementById('sub-auto-renew').checked = true;
+    document.getElementById('sub-notify').checked = true;
+    document.getElementById('sub-inactive').checked = false;
+    document.getElementById('subscription-modal').classList.remove('hidden');
+  }
+
+  function editSubscription(btn) {
+    document.getElementById('sub-modal-title').textContent = 'Edit Subscription';
+    document.getElementById('sub-id').value = btn.dataset.id;
+    document.getElementById('sub-name').value = btn.dataset.name;
+    document.getElementById('sub-price').value = btn.dataset.price;
+    if (btn.dataset.currency) document.getElementById('sub-currency').value = btn.dataset.currency;
+    document.getElementById('sub-cycle').value = btn.dataset.cycle;
+    document.getElementById('sub-frequency').value = btn.dataset.frequency;
+    document.getElementById('sub-next-payment').value = btn.dataset.nextPayment;
+    document.getElementById('sub-cancellation-date').value = btn.dataset.cancellationDate || '';
+    document.getElementById('sub-category').value = btn.dataset.category || '';
+    document.getElementById('sub-payment-method').value = btn.dataset.paymentMethod || '';
+    document.getElementById('sub-payer').value = btn.dataset.payer || '';
+    document.getElementById('sub-logo-url').value = btn.dataset.logoUrl || '';
+    document.getElementById('sub-url').value = btn.dataset.url || '';
+    document.getElementById('sub-notes').value = btn.dataset.notes || '';
+    document.getElementById('sub-auto-renew').checked = btn.dataset.autoRenew === 'true';
+    document.getElementById('sub-notify').checked = btn.dataset.notify === 'true';
+    document.getElementById('sub-inactive').checked = btn.dataset.inactive === 'true';
+    document.getElementById('subscription-modal').classList.remove('hidden');
+  }
+
+  function closeSubscriptionModal() {
+    document.getElementById('subscription-modal').classList.add('hidden');
+  }
+
+  if (new URLSearchParams(window.location.search).get('add') === '1') {
+    openSubscriptionModal();
+  }
+</script>
+{% endblock %}

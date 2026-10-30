@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% block title %}Statistics · MyKeep{% endblock %}
+{% block content %}
+
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="apple-card apple-card-interactive p-5 animate-spring-in stagger-1">
+    <div class="flex items-center justify-between text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+      <span>Active Subscriptions</span>
+      <div class="w-8 h-8 rounded-xl bg-[#0071E3]/10 dark:bg-[#0A84FF]/20 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      </div>
+    </div>
+    <div class="text-2xl sm:text-3xl font-semibold tracking-tight tnum mb-1">{{ active_count }}</div>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">Avg {{ formatted_average_monthly_per_sub }}/mo per service</div>
+  </div>
+
+  <div class="apple-card apple-card-interactive p-5 animate-spring-in stagger-2">
+    <div class="flex items-center justify-between text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+      <span>Monthly &amp; Yearly Cost</span>
+      <div class="w-8 h-8 rounded-xl bg-[#5E5CE6]/10 dark:bg-[#5E5CE6]/20 text-[#5E5CE6] flex items-center justify-center">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+    </div>
+    <div class="text-2xl sm:text-3xl font-semibold tracking-tight tnum mb-1">{{ formatted_monthly_total }}</div>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">{{ formatted_yearly_projection }}/yr{% if monthly_budget > 0 %} · {{ budget_used_pct }}% of budget{% endif %}</div>
+  </div>
+
+  <div class="apple-card apple-card-interactive p-5 animate-spring-in stagger-3">
+    <div class="flex items-center justify-between text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+      <span>Highest Monthly Cost</span>
+      <div class="w-8 h-8 rounded-xl bg-[#FF375F]/10 dark:bg-[#FF375F]/20 text-[#FF375F] flex items-center justify-center">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      </div>
+    </div>
+    <div class="text-2xl sm:text-3xl font-semibold tracking-tight tnum mb-1">{{ formatted_most_expensive_monthly }}</div>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] truncate">{{ most_expensive_sub.name|default:"None" }}</div>
+  </div>
+
+  <div class="apple-card apple-card-interactive p-5 animate-spring-in stagger-4">
+    <div class="flex items-center justify-between text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+      <span>Paused Savings</span>
+      <div class="w-8 h-8 rounded-xl bg-[#30D158]/12 dark:bg-[#30D158]/20 text-[#30D158] flex items-center justify-center">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      </div>
+    </div>
+    <div class="text-2xl sm:text-3xl font-semibold tracking-tight tnum mb-1">{{ formatted_monthly_savings }}/mo</div>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">{{ formatted_yearly_savings }}/yr across {{ inactive_count }} paused</div>
+  </div>
+</section>
+
+<!-- Interactive 12-Month Billing Graph (Bar + Curve Toggle) -->
+<section class="apple-card p-6 mb-6 animate-spring-in stagger-2">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+    <div>
+      <h2 class="text-base font-semibold tracking-tight">12-Month Billing Forecast</h2>
+      <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Projected monthly outflow including annual &amp; multi-month renewals</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <span id="stats-cf-readout" class="text-xs font-mono tnum px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
+        Yearly Total: {{ formatted_yearly_projection }}
+      </span>
+      <div class="inline-flex p-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.07] text-xs font-medium">
+        <button type="button" id="btn-view-bars" onclick="switchChartMode('bars')" class="px-3 py-1 rounded-full bg-white dark:bg-[#2C2C2E] shadow-sm transition-all">Bars</button>
+        <button type="button" id="btn-view-curve" onclick="switchChartMode('curve')" class="px-3 py-1 rounded-full text-[#6E6E73] dark:text-[#A1A1A6] transition-all">Curve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bar Graph View -->
+  <div id="chart-bars-view" class="grid grid-cols-12 gap-2 sm:gap-4 items-end h-48 pt-6 px-1">
+    {% for m in cashflow_months %}
+    <div class="flex flex-col items-center h-full justify-end group cursor-pointer"
+         onmouseenter="document.getElementById('stats-cf-readout').textContent = '{{ m.label }} {{ m.year }}: {{ m.formatted }}'"
+         onmouseleave="document.getElementById('stats-cf-readout').textContent = 'Yearly Total: {{ formatted_yearly_projection }}'">
+      <div class="text-[10px] font-mono tnum text-[#0071E3] dark:text-[#0A84FF] opacity-0 group-hover:opacity-100 transition-opacity mb-1 hidden sm:block">{{ m.formatted }}</div>
+      <div class="w-full max-w-[38px] bg-black/[0.04] dark:bg-white/[0.05] rounded-t-xl rounded-b-md h-36 flex items-end overflow-hidden p-0.5">
+        <div class="w-full rounded-t-lg rounded-b-sm bg-[#0071E3] dark:bg-[#0A84FF] group-hover:bg-[#0077ED] transition-all duration-300 chart-bar-grow"
+             style="height: {{ m.height_pct }}%; animation-delay: {{ forloop.counter0 }}0ms;"></div>
+      </div>
+      <span class="text-[11px] text-[#6E6E73] dark:text-[#A1A1A6] font-medium mt-2">{{ m.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Smooth Curve View -->
+  <div id="chart-curve-view" class="hidden relative w-full pt-2">
+    <svg viewBox="-16 0 692 185" class="w-full h-48 overflow-visible">
+      <line x1="0" y1="20" x2="660" y2="20" stroke="currentColor" class="text-black/[0.05] dark:text-white/[0.06]" stroke-dasharray="3 3" />
+      <line x1="0" y1="80" x2="660" y2="80" stroke="currentColor" class="text-black/[0.05] dark:text-white/[0.06]" stroke-dasharray="3 3" />
+      <line x1="0" y1="140" x2="660" y2="140" stroke="currentColor" class="text-black/[0.07] dark:text-white/[0.08]" />
+      {% if cashflow_svg_area %}
+      <path d="{{ cashflow_svg_area }}" fill="#0071E3" fill-opacity="0.1" />
+      <path d="{{ cashflow_svg_line }}" fill="none" stroke="#0071E3" stroke-width="2.75" stroke-linecap="round" />
+      {% endif %}
+      {% for m in cashflow_months %}
+      <g class="group cursor-pointer"
+         onmouseenter="document.getElementById('stats-cf-readout').textContent = '{{ m.label }} {{ m.year }}: {{ m.formatted }}'"
+         onmouseleave="document.getElementById('stats-cf-readout').textContent = 'Yearly Total: {{ formatted_yearly_projection }}'">
+        <circle cx="{{ m.cx }}" cy="{{ m.cy }}" r="12" fill="transparent" />
+        <circle cx="{{ m.cx }}" cy="{{ m.cy }}" r="4.5" class="fill-white dark:fill-[#161618] stroke-[#0071E3] dark:stroke-[#0A84FF] stroke-[2.5] transition-transform duration-200 group-hover:scale-125" />
+        <text x="{{ m.cx }}" y="166" text-anchor="middle" class="text-[10px] fill-[#6E6E73] dark:fill-[#A1A1A6] font-medium">{{ m.label }}</text>
+      </g>
+      {% endfor %}
+    </svg>
+  </div>
+</section>
+
+<!-- Three Interactive Donut + Bar Breakdown Cards -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <!-- Category Breakdown -->
+  <section class="apple-card p-6 animate-spring-in stagger-2">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="text-sm font-semibold tracking-tight">Spend by Category</h2>
+        <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Monthly &amp; yearly distribution</p>
+      </div>
+    </div>
+
+    {% if category_breakdown %}
+    <div class="flex justify-center mb-5">
+      <div class="relative w-36 h-36 flex items-center justify-center">
+        <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90 overflow-visible">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="9" class="text-black/[0.05] dark:text-white/[0.06]" />
+          {% for row in category_breakdown %}
+          <circle cx="50" cy="50" r="40" fill="none" stroke="{{ row.color }}" stroke-width="9" stroke-linecap="round"
+                  stroke-dasharray="{{ row.dash_array }}" stroke-dashoffset="{{ row.dash_offset }}" class="donut-segment" />
+          {% endfor %}
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+          <span class="text-[10px] text-[#6E6E73] dark:text-[#A1A1A6]">Categories</span>
+          <span class="text-sm font-semibold tnum">{{ category_breakdown|length }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-3.5 text-sm">
+      {% for row in category_breakdown %}
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center space-x-2 truncate">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {{ row.color }}"></span>
+            <span class="font-medium truncate">{{ row.name }}</span>
+          </div>
+          <div class="text-right tnum">
+            <span class="font-semibold">{{ row.formatted }}</span>
+            <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] ml-1">({{ row.share_pct }}%)</span>
+          </div>
+        </div>
+        <div class="w-full h-1.5 rounded-full bg-black/[0.05] dark:bg-white/[0.07] overflow-hidden">
+          <div class="h-full rounded-full chart-width-grow" style="width: {{ row.share_pct }}%; background-color: {{ row.color }}"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-8 text-center text-sm text-[#6E6E73] dark:text-[#A1A1A6]">No active category data.</div>
+    {% endif %}
+  </section>
+
+  <!-- Household Member Breakdown -->
+  <section class="apple-card p-6 animate-spring-in stagger-3">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="text-sm font-semibold tracking-tight">Spend by Household</h2>
+        <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Member share split</p>
+      </div>
+    </div>
+
+    {% if member_breakdown %}
+    <div class="flex justify-center mb-5">
+      <div class="relative w-36 h-36 flex items-center justify-center">
+        <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90 overflow-visible">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="9" class="text-black/[0.05] dark:text-white/[0.06]" />
+          {% for row in member_breakdown %}
+          <circle cx="50" cy="50" r="40" fill="none" stroke="{{ row.color }}" stroke-width="9" stroke-linecap="round"
+                  stroke-dasharray="{{ row.dash_array }}" stroke-dashoffset="{{ row.dash_offset }}" class="donut-segment" />
+          {% endfor %}
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+          <span class="text-[10px] text-[#6E6E73] dark:text-[#A1A1A6]">Members</span>
+          <span class="text-sm font-semibold tnum">{{ member_breakdown|length }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-3.5 text-sm">
+      {% for row in member_breakdown %}
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center space-x-2 truncate">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {{ row.color }}"></span>
+            <span class="font-medium truncate">{{ row.name }}</span>
+          </div>
+          <div class="text-right tnum">
+            <span class="font-semibold">{{ row.formatted }}</span>
+            <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] ml-1">({{ row.share_pct }}%)</span>
+          </div>
+        </div>
+        <div class="w-full h-1.5 rounded-full bg-black/[0.05] dark:bg-white/[0.07] overflow-hidden">
+          <div class="h-full rounded-full chart-width-grow" style="width: {{ row.share_pct }}%; background-color: {{ row.color }}"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-8 text-center text-sm text-[#6E6E73] dark:text-[#A1A1A6]">No household member data.</div>
+    {% endif %}
+  </section>
+
+  <!-- Payment Method Breakdown -->
+  <section class="apple-card p-6 animate-spring-in stagger-4">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="text-sm font-semibold tracking-tight">Payment Methods</h2>
+        <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Card &amp; account allocation</p>
+      </div>
+    </div>
+
+    {% if payment_method_breakdown %}
+    <div class="flex justify-center mb-5">
+      <div class="relative w-36 h-36 flex items-center justify-center">
+        <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90 overflow-visible">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="9" class="text-black/[0.05] dark:text-white/[0.06]" />
+          {% for row in payment_method_breakdown %}
+          <circle cx="50" cy="50" r="40" fill="none" stroke="{{ row.color }}" stroke-width="9" stroke-linecap="round"
+                  stroke-dasharray="{{ row.dash_array }}" stroke-dashoffset="{{ row.dash_offset }}" class="donut-segment" />
+          {% endfor %}
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+          <span class="text-[10px] text-[#6E6E73] dark:text-[#A1A1A6]">Methods</span>
+          <span class="text-sm font-semibold tnum">{{ payment_method_breakdown|length }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-3.5 text-sm">
+      {% for row in payment_method_breakdown %}
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center space-x-2 truncate">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {{ row.color }}"></span>
+            <span class="font-medium truncate">{{ row.name }}</span>
+          </div>
+          <div class="text-right tnum">
+            <span class="font-semibold">{{ row.formatted }}</span>
+            <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] ml-1">({{ row.share_pct }}%)</span>
+          </div>
+        </div>
+        <div class="w-full h-1.5 rounded-full bg-black/[0.05] dark:bg-white/[0.07] overflow-hidden">
+          <div class="h-full rounded-full chart-width-grow" style="width: {{ row.share_pct }}%; background-color: {{ row.color }}"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-8 text-center text-sm text-[#6E6E73] dark:text-[#A1A1A6]">No payment method data.</div>
+    {% endif %}
+  </section>
+</div>
+
+<section class="apple-card overflow-hidden animate-spring-in stagger-5">
+  <div class="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+    <div>
+      <h2 class="text-sm font-semibold tracking-tight">Historical Cost Snapshots</h2>
+      <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Recorded run-rate trajectory over time</p>
+    </div>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse text-sm">
+      <thead>
+        <tr class="border-b border-black/[0.06] dark:border-white/[0.08] text-xs text-[#6E6E73] dark:text-[#A1A1A6]">
+          <th class="py-3.5 px-6 font-medium">Date</th>
+          <th class="py-3.5 px-6 font-medium">Active Subscriptions</th>
+          <th class="py-3.5 px-6 font-medium text-right">Monthly Run Rate</th>
+          <th class="py-3.5 px-6 font-medium text-right">Yearly Run Rate</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+        {% for snap in cost_snapshots %}
+        <tr class="hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
+          <td class="py-3.5 px-6 tnum">{{ snap.recorded_date|date:"M d, Y" }}</td>
+          <td class="py-3.5 px-6 tnum">{{ snap.active_count }}</td>
+          <td class="py-3.5 px-6 text-right tnum font-semibold">{{ snap.formatted_monthly }}</td>
+          <td class="py-3.5 px-6 text-right tnum text-[#6E6E73] dark:text-[#A1A1A6]">{{ snap.formatted_yearly }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="py-8 px-6 text-center text-[#6E6E73] dark:text-[#A1A1A6]">No snapshots recorded yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  function switchChartMode(mode) {
+    var bars = document.getElementById('chart-bars-view');
+    var curve = document.getElementById('chart-curve-view');
+    var bBtn = document.getElementById('btn-view-bars');
+    var cBtn = document.getElementById('btn-view-curve');
+    if (mode === 'curve') {
+      bars.classList.add('hidden');
+      curve.classList.remove('hidden');
+      cBtn.className = 'px-3 py-1 rounded-full bg-white dark:bg-[#2C2C2E] shadow-sm transition-all';
+      bBtn.className = 'px-3 py-1 rounded-full text-[#6E6E73] dark:text-[#A1A1A6] transition-all';
+    } else {
+      curve.classList.add('hidden');
+      bars.classList.remove('hidden');
+      bBtn.className = 'px-3 py-1 rounded-full bg-white dark:bg-[#2C2C2E] shadow-sm transition-all';
+      cBtn.className = 'px-3 py-1 rounded-full text-[#6E6E73] dark:text-[#A1A1A6] transition-all';
+    }
+  }
+</script>
+
+{% endblock %}

@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · MyKeep{% endblock %}
+{% block content %}
+
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="apple-card apple-card-interactive p-5 animate-spring-in stagger-1">
+    <div class="flex items-center justify-between text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+      <span>Monthly Burn</span>
+      <div class="w-8 h-8 rounded-xl bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:bg-opacity-20 dark:text-[#0A84FF] flex items-center justify-center">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+    </div>
+    <div class="text-2xl sm:text-3xl font-semibold tracking-tight tnum mb-1">{{ formatted_monthly_total }}</div>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">
+      {% if monthly_budget > 0 %}Budget {{ formatted_monthly_budget }} · Left {{ formatted_budget_remaining }}{% else %}Recurring monthly run rate{% endif %}
+    </div>
+  </div>
+
+  <div class="apple-card apple-card-interactive p-5 animate-spring-in stagger-2">
+    <div class="flex items-center justify-between text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+      <span>Yearly Projection</span>
+      <div class="w-8 h-8 rounded-xl bg-[#5E5CE6]/10 dark:bg-[#5E5CE6]/20 text-[#5E5CE6] flex items-center justify-center">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      </div>
+    </div>
+    <div class="text-2xl sm:text-3xl font-semibold tracking-tight tnum mb-1">{{ formatted_yearly_projection }}</div>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">{{ active_count }} active{% if inactive_count %} · {{ inactive_count }} paused{% endif %}</div>
+  </div>
+
+  <div class="apple-card apple-card-interactive p-5 animate-spring-in stagger-3">
+    <div class="flex items-center justify-between text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+      <span>Due Next 7 Days</span>
+      <div class="w-8 h-8 rounded-xl bg-[#FF9F0A]/12 dark:bg-[#FF9F0A]/20 text-[#FF9F0A] flex items-center justify-center">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+    </div>
+    <div class="text-2xl sm:text-3xl font-semibold tracking-tight tnum mb-1">{{ formatted_due_next_7_days }}</div>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">{{ due_next_7_count }} upcoming renewal{{ due_next_7_count|pluralize }}</div>
+  </div>
+
+  <div class="apple-card apple-card-interactive p-5 animate-spring-in stagger-4">
+    <div class="flex items-center justify-between text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+      <span>Wishlist Target</span>
+      <div class="w-8 h-8 rounded-xl bg-[#30D158]/12 dark:bg-[#30D158]/20 text-[#30D158] flex items-center justify-center">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      </div>
+    </div>
+    <div class="text-2xl sm:text-3xl font-semibold tracking-tight tnum mb-1">{{ formatted_wishlist_total }}</div>
+    <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">{{ wishlist_count }} item{{ wishlist_count|pluralize }}{% if wishlist_saved_total > 0 %} · Saved {{ formatted_wishlist_saved_total }}{% endif %}</div>
+  </div>
+</section>
+
+<!-- Interactive Visual Analytics Row -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <!-- 12-Month Spend Trajectory Graph -->
+  <section class="lg:col-span-2 apple-card p-6 animate-spring-in stagger-2">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
+      <div>
+        <h2 class="text-sm font-semibold tracking-tight">12-Month Cashflow Trajectory</h2>
+        <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Projected monthly &amp; annual renewal billing schedule</p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span id="cf-hover-readout" class="text-xs font-mono tnum px-3 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#1D1D1F] dark:text-[#F5F5F7]">
+          Avg {{ formatted_monthly_total }}/mo
+        </span>
+      </div>
+    </div>
+
+    <!-- Smooth Cubic Bezier SVG Curve + Interactive Points -->
+    <div class="relative w-full pt-2">
+      <svg viewBox="-16 0 692 185" class="w-full h-44 overflow-visible">
+        <line x1="0" y1="20" x2="660" y2="20" stroke="currentColor" class="text-black/[0.05] dark:text-white/[0.06]" stroke-dasharray="3 3" />
+        <line x1="0" y1="80" x2="660" y2="80" stroke="currentColor" class="text-black/[0.05] dark:text-white/[0.06]" stroke-dasharray="3 3" />
+        <line x1="0" y1="140" x2="660" y2="140" stroke="currentColor" class="text-black/[0.07] dark:text-white/[0.08]" />
+
+        {% if cashflow_svg_area %}
+        <path d="{{ cashflow_svg_area }}" fill="#0071E3" fill-opacity="0.08" class="chart-area-fade" />
+        <path d="{{ cashflow_svg_line }}" fill="none" stroke="#0071E3" stroke-width="2.75" stroke-linecap="round" class="chart-line-draw" />
+        {% endif %}
+
+        {% for m in cashflow_months %}
+        <g class="group cursor-pointer"
+           onmouseenter="document.getElementById('cf-hover-readout').textContent = '{{ m.label }} {{ m.year }}: {{ m.formatted }}'"
+           onmouseleave="document.getElementById('cf-hover-readout').textContent = 'Avg {{ formatted_monthly_total }}/mo'">
+          <line x1="{{ m.cx }}" y1="15" x2="{{ m.cx }}" y2="140" stroke="#0071E3" stroke-width="1" stroke-dasharray="2 2" class="opacity-0 group-hover:opacity-40 transition-opacity" />
+          <circle cx="{{ m.cx }}" cy="{{ m.cy }}" r="12" fill="transparent" />
+          <circle cx="{{ m.cx }}" cy="{{ m.cy }}" r="4" class="fill-white dark:fill-[#161618] stroke-[#0071E3] dark:stroke-[#0A84FF] stroke-[2.5] transition-transform duration-200 group-hover:scale-125" />
+          <text x="{{ m.cx }}" y="166" text-anchor="middle" class="text-[10px] fill-[#6E6E73] dark:fill-[#A1A1A6] font-medium select-none">{{ m.label }}</text>
+        </g>
+        {% endfor %}
+      </svg>
+    </div>
+  </section>
+
+  <!-- Interactive Apple Ring Chart for Categories -->
+  <section class="apple-card p-6 flex flex-col justify-between animate-spring-in stagger-3">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-sm font-semibold tracking-tight">Category Share</h2>
+        <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Hover ring segments to inspect</p>
+      </div>
+      <a href="{% url 'stats' %}" class="text-xs font-medium text-[#0071E3] dark:text-[#0A84FF] hover:underline">Full Stats</a>
+    </div>
+
+    {% if category_breakdown %}
+    <div class="flex items-center justify-center my-2">
+      <div class="relative w-40 h-40 flex items-center justify-center">
+        <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90 overflow-visible">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="9" class="text-black/[0.05] dark:text-white/[0.06]" />
+          {% for cat in category_breakdown %}
+          <circle
+            cx="50" cy="50" r="40"
+            fill="none"
+            stroke="{{ cat.color }}"
+            stroke-width="9"
+            stroke-linecap="round"
+            stroke-dasharray="{{ cat.dash_array }}"
+            stroke-dashoffset="{{ cat.dash_offset }}"
+            class="donut-segment"
+            onmouseenter="setRingReadout('{{ cat.name|escapejs }}', '{{ cat.formatted }}', '{{ cat.share_pct }}%')"
+            onmouseleave="resetRingReadout()"
+          />
+          {% endfor %}
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-3 pointer-events-none">
+          <span id="ring-center-label" class="text-[11px] text-[#6E6E73] dark:text-[#A1A1A6] truncate max-w-[95px]">Monthly</span>
+          <span id="ring-center-val" class="text-sm font-semibold tnum text-[#1D1D1F] dark:text-[#F5F5F7]">{{ formatted_monthly_total }}</span>
+          <span id="ring-center-pct" class="text-[10px] font-mono text-[#0071E3] dark:text-[#0A84FF]">100%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-2 mt-3">
+      {% for cat in category_breakdown|slice:":4" %}
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center space-x-2 truncate">
+          <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {{ cat.color }}"></span>
+          <span class="truncate text-[#1D1D1F] dark:text-[#F5F5F7]">{{ cat.name }}</span>
+        </div>
+        <div class="flex items-center space-x-2 tnum">
+          <span class="text-[#6E6E73] dark:text-[#A1A1A6]">{{ cat.share_pct }}%</span>
+          <span class="font-medium">{{ cat.formatted }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-12 text-center text-xs text-[#6E6E73] dark:text-[#A1A1A6]">
+      Add active subscriptions to see category ring breakdown.
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+{% if overdue_renewals %}
+<section class="apple-card mb-6 overflow-hidden animate-spring-in">
+  <div class="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <span class="w-2 h-2 rounded-full bg-[#FF9F0A]"></span>
+      <h2 class="text-sm font-semibold tracking-tight">Manual Renewals Due</h2>
+    </div>
+    <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Action required</span>
+  </div>
+  <div class="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+    {% for sub in overdue_renewals %}
+    <div class="px-6 py-4 flex items-center justify-between hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
+      <div class="flex items-center space-x-4">
+        {% if sub.logo_url %}
+        <img src="{{ sub.logo_url }}" alt="{{ sub.name }}" class="w-10 h-10 object-contain rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#202024] p-1">
+        {% else %}
+        <div class="w-10 h-10 rounded-xl bg-[#F2F2F7] dark:bg-[#202024] border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center text-xs font-semibold font-mono">{{ sub.initials }}</div>
+        {% endif %}
+        <div>
+          <div class="text-sm font-medium">{{ sub.name }}</div>
+          <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Due {{ sub.next_payment|date:"M d, Y" }} · {{ sub.cycle_label }}</div>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4 text-sm">
+        <span class="tnum font-semibold">{{ sub.formatted_price }}</span>
+        <form method="post" action="{% url 'subscription_renew' sub.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% url 'dashboard' %}">
+          <button type="submit" class="apple-btn bg-[#0071E3] dark:bg-[#0A84FF] text-white px-3.5 py-1.5 rounded-full text-xs font-medium shadow-sm">Mark Paid</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if upcoming_cancellations %}
+<section class="apple-card mb-6 overflow-hidden animate-spring-in">
+  <div class="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+    <h2 class="text-sm font-semibold tracking-tight">Upcoming Cancellation Reminders</h2>
+    <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Cancel before renewal</span>
+  </div>
+  <div class="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+    {% for sub in upcoming_cancellations %}
+    <div class="px-6 py-3.5 flex items-center justify-between text-sm">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-xl bg-[#F2F2F7] dark:bg-[#202024] flex items-center justify-center text-xs font-mono">{{ sub.initials }}</div>
+        <div>
+          <span class="font-medium">{{ sub.name }}</span>
+          <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] ml-2">Cancel by {{ sub.cancellation_date|date:"M d, Y" }}</span>
+        </div>
+      </div>
+      <span class="tnum font-medium">{{ sub.formatted_price }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <section class="lg:col-span-2 apple-card overflow-hidden animate-spring-in stagger-3">
+    <div class="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-semibold tracking-tight">Upcoming Renewals</h2>
+        <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Next 30 days schedule</p>
+      </div>
+      <a href="{% url 'subscriptions' %}" class="text-xs font-medium text-[#0071E3] dark:text-[#0A84FF] hover:underline">View all</a>
+    </div>
+    <div class="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+      {% for sub in upcoming_renewals %}
+      <div class="px-6 py-4 flex items-center justify-between hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
+        <div class="flex items-center space-x-4">
+          {% if sub.logo_url %}
+          <img src="{{ sub.logo_url }}" alt="{{ sub.name }}" class="w-10 h-10 object-contain rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#202024] p-1">
+          {% else %}
+          <div class="w-10 h-10 rounded-xl bg-[#F2F2F7] dark:bg-[#202024] border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center text-xs font-semibold font-mono">{{ sub.initials }}</div>
+          {% endif %}
+          <div>
+            <div class="text-sm font-medium">{{ sub.name }}</div>
+            <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">{{ sub.category.name|default:"Uncategorized" }}{% if sub.payer %} · {{ sub.payer.name }}{% endif %} · {{ sub.cycle_label }}</div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-6 text-sm">
+          <span class="tnum text-xs px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#A1A1A6]">{{ sub.next_payment|date:"M d" }}</span>
+          <div class="text-right">
+            <div class="tnum font-semibold">{{ sub.formatted_price }}</div>
+            {% if sub.is_different_currency and user_settings.show_original_price %}
+            <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">{{ sub.formatted_converted_price }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="px-6 py-10 text-sm text-[#6E6E73] dark:text-[#A1A1A6] flex items-center justify-between">
+        <span>No renewals scheduled in the next 30 days.</span>
+        <a href="{% url 'subscriptions' %}?add=1" class="text-[#0071E3] dark:text-[#0A84FF] font-medium hover:underline">+ Add subscription</a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="apple-card overflow-hidden animate-spring-in stagger-4">
+    <div class="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-semibold tracking-tight">Wishlist</h2>
+        <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">{{ wishlist_count }} saved goal{{ wishlist_count|pluralize }}</p>
+      </div>
+      <a href="{% url 'wishlist' %}" class="text-xs font-medium text-[#0071E3] dark:text-[#0A84FF] hover:underline">View all</a>
+    </div>
+    <div class="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+      {% for item in wishlist_items|slice:":5" %}
+      <div class="p-4 flex items-center space-x-3.5 hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
+        {% if item.image_url %}
+        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="w-12 h-12 object-cover rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#202024]">
+        {% else %}
+        <div class="w-12 h-12 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-[#F2F2F7] dark:bg-[#202024] flex items-center justify-center text-[10px] font-mono text-[#6E6E73] dark:text-[#A1A1A6]">ITEM</div>
+        {% endif %}
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium truncate">{{ item.name }}</div>
+          <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] truncate">
+            {% if item.domain %}{{ item.domain }}{% elif item.category %}{{ item.category.name }}{% else %}{{ item.priority_label }}{% endif %}
+          </div>
+        </div>
+        <div class="text-sm font-semibold tnum">{{ item.formatted_price }}</div>
+      </div>
+      {% empty %}
+      <div class="p-6 text-sm text-[#6E6E73] dark:text-[#A1A1A6] flex items-center justify-between">
+        <span>Your wishlist is empty.</span>
+        <a href="{% url 'wishlist' %}?add=1" class="text-[#0071E3] dark:text-[#0A84FF] font-medium hover:underline">+ Add item</a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+{% if recommendations %}
+<section class="apple-card mt-6 overflow-hidden animate-spring-in stagger-5">
+  <div class="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+    <h2 class="text-sm font-semibold tracking-tight">Smart Savings Opportunities</h2>
+    <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Optimization insights</span>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-black/[0.05] dark:divide-white/[0.06]">
+    {% for rec in recommendations %}
+    <div class="p-5 flex items-start justify-between gap-4">
+      <div>
+        <div class="text-sm font-medium">{{ rec.title }}</div>
+        <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] mt-1 leading-relaxed">{{ rec.description }}</div>
+      </div>
+      {% if rec.savings %}
+      <span class="px-3 py-1 rounded-full bg-[#30D158]/15 text-[#248A3D] dark:text-[#30D158] text-xs font-semibold tnum whitespace-nowrap">{{ rec.savings }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<script>
+  function setRingReadout(name, val, pct) {
+    var l = document.getElementById('ring-center-label');
+    var v = document.getElementById('ring-center-val');
+    var p = document.getElementById('ring-center-pct');
+    if (l) l.textContent = name;
+    if (v) v.textContent = val;
+    if (p) p.textContent = pct;
+  }
+  function resetRingReadout() {
+    setRingReadout('Monthly', '{{ formatted_monthly_total|escapejs }}', '100%');
+  }
+</script>
+
+{% endblock %}

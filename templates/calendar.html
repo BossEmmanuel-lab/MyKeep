@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Calendar · MyKeep{% endblock %}
+{% block content %}
+
+<section class="apple-card p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-spring-in stagger-1">
+  <div class="flex items-center space-x-3">
+    <a href="{% url 'calendar' %}?year={{ prev_year }}&month={{ prev_month }}" class="apple-btn px-3.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-xs font-medium hover:bg-black/[0.08] dark:hover:bg-white/[0.12]">← Prev</a>
+    <h1 class="text-base font-semibold tracking-tight tnum px-2">{{ month_name }} {{ year }}</h1>
+    <a href="{% url 'calendar' %}?year={{ next_year }}&month={{ next_month }}" class="apple-btn px-3.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-xs font-medium hover:bg-black/[0.08] dark:hover:bg-white/[0.12]">Next →</a>
+  </div>
+  <div class="flex items-center space-x-4 text-sm">
+    <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] tnum">Month Due Total: <strong class="text-[#1D1D1F] dark:text-[#F5F5F7]">{{ formatted_monthly_due_total }}</strong></span>
+    <a href="{% url 'export_ical' %}" class="apple-btn px-4 py-1.5 rounded-full bg-[#0071E3] dark:bg-[#0A84FF] text-white text-xs font-medium shadow-sm">Export iCal (.ics)</a>
+  </div>
+</section>
+
+<section class="apple-card overflow-hidden animate-spring-in stagger-2">
+  <div class="grid grid-cols-7 border-b border-black/[0.06] dark:border-white/[0.08] text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] text-center bg-black/[0.015] dark:bg-white/[0.02]">
+    <div class="py-3 border-r border-black/[0.05] dark:border-white/[0.06]">Sun</div>
+    <div class="py-3 border-r border-black/[0.05] dark:border-white/[0.06]">Mon</div>
+    <div class="py-3 border-r border-black/[0.05] dark:border-white/[0.06]">Tue</div>
+    <div class="py-3 border-r border-black/[0.05] dark:border-white/[0.06]">Wed</div>
+    <div class="py-3 border-r border-black/[0.05] dark:border-white/[0.06]">Thu</div>
+    <div class="py-3 border-r border-black/[0.05] dark:border-white/[0.06]">Fri</div>
+    <div class="py-3">Sat</div>
+  </div>
+
+  {% for week in weeks %}
+  <div class="grid grid-cols-7 border-b last:border-b-0 border-black/[0.05] dark:border-white/[0.06]">
+    {% for cell in week %}
+    <div class="min-h-[116px] p-2.5 border-r last:border-r-0 border-black/[0.05] dark:border-white/[0.06] transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.015] {% if not cell.in_month %}opacity-35 bg-black/[0.02] dark:bg-white/[0.01]{% endif %}">
+      <div class="flex items-center justify-between mb-2">
+        <span class="w-6 h-6 inline-flex items-center justify-center text-xs tnum rounded-full {% if cell.is_today %}bg-[#0071E3] dark:bg-[#0A84FF] text-white font-semibold shadow-sm{% else %}text-[#6E6E73] dark:text-[#A1A1A6]{% endif %}">{{ cell.day }}</span>
+      </div>
+      <div class="space-y-1.5">
+        {% for ev in cell.events %}
+        <div class="px-2 py-1 rounded-lg bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[11px] flex items-center justify-between gap-1 truncate">
+          <span class="font-medium text-[#1D1D1F] dark:text-[#F5F5F7] truncate">{{ ev.name }}</span>
+          <span class="text-[#0071E3] dark:text-[#0A84FF] font-semibold tnum shrink-0">{{ ev.price }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</section>
+
+{% endblock %}

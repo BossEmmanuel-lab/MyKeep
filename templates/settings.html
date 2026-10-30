@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% block title %}Settings · MyKeep{% endblock %}
+{% block content %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <div class="space-y-6">
+    <section class="apple-card p-6 animate-spring-in stagger-1">
+      <h2 class="text-sm font-semibold tracking-tight pb-3 mb-4 border-b border-black/[0.06] dark:border-white/[0.08]">General &amp; Appearance</h2>
+      <form method="post" action="{% url 'settings_save_general' %}" class="space-y-4">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Main Currency</label>
+            <select name="main_currency_id" class="apple-input w-full h-10 px-3 text-sm">
+              {% for curr in currencies %}
+              <option value="{{ curr.id }}" {% if main_currency and curr.id == main_currency.id %}selected{% endif %}>{{ curr.code }} ({{ curr.symbol }}) - {{ curr.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Monthly Budget</label>
+            <input type="number" step="0.01" name="monthly_budget" value="{{ user_settings.monthly_budget }}" class="apple-input w-full h-10 px-3.5 text-sm tnum">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Theme Mode</label>
+            <select name="theme" onchange="localStorage.setItem('mykeep_theme', this.value)" class="apple-input w-full h-10 px-3 text-sm">
+              <option value="light" {% if user_settings.theme == 'light' %}selected{% endif %}>Light</option>
+              <option value="dark" {% if user_settings.theme == 'dark' %}selected{% endif %}>Dark</option>
+              <option value="system" {% if user_settings.theme == 'system' %}selected{% endif %}>System</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Exchange Rate Provider</label>
+            <select name="exchange_provider" class="apple-input w-full h-10 px-3 text-sm">
+              <option value="frankfurter" {% if user_settings.exchange_provider == 'frankfurter' %}selected{% endif %}>Frankfurter (Free)</option>
+              <option value="fixer" {% if user_settings.exchange_provider == 'fixer' %}selected{% endif %}>Fixer API</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Fixer API Key (optional)</label>
+            <input type="text" name="fixer_api_key" value="{{ user_settings.fixer_api_key }}" class="apple-input w-full h-10 px-3.5 text-sm">
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-6 pt-2 text-xs">
+          <label class="inline-flex items-center space-x-2">
+            <input type="checkbox" name="show_monthly_price" {% if user_settings.show_monthly_price %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Show monthly equivalent price</span>
+          </label>
+          <label class="inline-flex items-center space-x-2">
+            <input type="checkbox" name="show_original_price" {% if user_settings.show_original_price %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Show converted currency amount</span>
+          </label>
+          <label class="inline-flex items-center space-x-2">
+            <input type="checkbox" name="hide_disabled" {% if user_settings.hide_disabled %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Hide paused subscriptions by default</span>
+          </label>
+        </div>
+
+        <div class="pt-4 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+          <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] font-mono">API Key: {{ user_settings.api_key|truncatechars:18 }}</span>
+          <button type="submit" class="apple-btn px-5 py-2 text-xs font-medium bg-[#0071E3] dark:bg-[#0A84FF] text-white rounded-full shadow-sm">Save General</button>
+        </div>
+      </form>
+      <form method="post" action="{% url 'settings_manage_taxonomy' %}" class="mt-2 flex justify-start">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="regenerate_api_key">
+        <button type="submit" class="text-xs font-medium text-[#0071E3] dark:text-[#0A84FF] hover:underline">Regenerate API Key</button>
+      </form>
+    </section>
+
+    <section class="apple-card p-6 space-y-6 animate-spring-in stagger-2">
+      <div>
+        <h2 class="text-sm font-semibold tracking-tight pb-3 mb-4 border-b border-black/[0.06] dark:border-white/[0.08]">Security &amp; Two-Factor Authentication (2FA)</h2>
+
+        {% if fresh_recovery_codes %}
+        <div class="mb-5 p-4 rounded-2xl border border-[#0071E3]/40 bg-[#0071E3]/5 dark:bg-[#0A84FF]/10">
+          <div class="text-xs font-semibold tracking-tight mb-1">Save Your Single-Use Recovery Codes</div>
+          <p class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] mb-3">
+            Store these codes in a safe place. Each code can be used once to sign in if you lose access to your authenticator device.
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs tnum">
+            {% for code in fresh_recovery_codes %}
+            <div class="p-2 rounded-xl bg-white dark:bg-[#161618] border border-black/[0.06] dark:border-white/[0.08] text-center">{{ code }}</div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if user_settings.totp_enabled %}
+        <div class="space-y-4 text-xs">
+          <div class="flex items-center justify-between">
+            <span>Status: <strong class="text-[#30D158]">2FA Enabled (TOTP Authenticator)</strong></span>
+            <span class="text-[#6E6E73] dark:text-[#A1A1A6] tnum">Recovery codes remaining: {{ remaining_recovery_codes_count }}</span>
+          </div>
+
+          <form method="post" action="{% url 'settings_totp_setup' %}" class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex flex-col sm:flex-row gap-2 sm:items-center">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="regenerate_recovery">
+            <input type="password" name="current_password" required placeholder="Current password" class="apple-input flex-1 h-9 px-3 text-xs">
+            <button type="submit" class="apple-btn px-3.5 h-9 text-xs rounded-full bg-black/[0.05] dark:bg-white/[0.08] font-medium">Regenerate Recovery Codes</button>
+          </form>
+
+          <form method="post" action="{% url 'settings_totp_setup' %}" class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex flex-col sm:flex-row gap-2 sm:items-center">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="disable">
+            <input type="password" name="current_password" required placeholder="Current password to disable 2FA" class="apple-input flex-1 h-9 px-3 text-xs">
+            <button type="submit" class="apple-btn px-3.5 h-9 text-xs rounded-full text-[#FF3B30] bg-[#FF3B30]/10 font-medium">Disable 2FA</button>
+          </form>
+        </div>
+        {% else %}
+        <div class="space-y-3 text-xs">
+          <p class="text-[#6E6E73] dark:text-[#A1A1A6]">
+            Add an extra layer of security using any TOTP authenticator app (Apple Passwords, 1Password, Bitwarden, Authy, Google Authenticator).
+          </p>
+          <div class="p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] space-y-1">
+            <div class="text-[#6E6E73] dark:text-[#A1A1A6]">Setup Key (Base32):</div>
+            <div class="font-mono text-sm select-all break-all font-medium">{{ pending_totp_secret }}</div>
+            <div class="text-[11px] text-[#6E6E73] dark:text-[#A1A1A6] truncate pt-1">URI: {{ pending_otpauth_uri }}</div>
+          </div>
+          <form method="post" action="{% url 'settings_totp_setup' %}" class="flex gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="enable">
+            <input type="text" name="code" required pattern="[0-9]{6}" maxlength="6" placeholder="Enter 6-digit code from app" class="apple-input flex-1 h-9 px-3.5 text-xs font-mono tnum">
+            <button type="submit" class="apple-btn px-4 h-9 text-xs font-medium bg-[#0071E3] dark:bg-[#0A84FF] text-white rounded-full shadow-sm">Enable 2FA</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="pt-4 border-t border-black/[0.06] dark:border-white/[0.08]">
+        <h3 class="text-xs font-semibold tracking-tight mb-3">Change Password</h3>
+        <form method="post" action="{% url 'settings_change_password' %}" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {% csrf_token %}
+          <input type="password" name="current_password" required placeholder="Current password" class="apple-input h-9 px-3 text-xs">
+          <input type="password" name="new_password" required placeholder="New password" class="apple-input h-9 px-3 text-xs">
+          <button type="submit" class="apple-btn h-9 text-xs font-medium rounded-full bg-black/[0.05] dark:bg-white/[0.08]">Update Password</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="apple-card p-6 space-y-6 animate-spring-in stagger-3">
+      <div>
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <h2 class="text-sm font-semibold tracking-tight">Categories</h2>
+        </div>
+        <div class="divide-y divide-black/[0.05] dark:divide-white/[0.06] mb-3 text-sm">
+          {% for cat in categories %}
+          <div class="py-2.5 flex items-center justify-between">
+            <span>{{ cat.name }}</span>
+            <form method="post" action="{% url 'settings_manage_taxonomy' %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_category">
+              <input type="hidden" name="id" value="{{ cat.id }}">
+              <button type="submit" class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#FF3B30] transition-colors">Delete</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        <form method="post" action="{% url 'settings_manage_taxonomy' %}" class="flex gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_category">
+          <input type="text" name="name" placeholder="New category name" required class="apple-input flex-1 h-9 px-3.5 text-xs">
+          <button type="submit" class="apple-btn px-4 h-9 text-xs rounded-full bg-black/[0.05] dark:bg-white/[0.08] font-medium">+ Add</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <h2 class="text-sm font-semibold tracking-tight">Currencies &amp; Rates</h2>
+          <form method="post" action="{% url 'settings_manage_taxonomy' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="refresh_rates">
+            <button type="submit" class="text-xs font-medium text-[#0071E3] dark:text-[#0A84FF] hover:underline">Refresh Live Rates</button>
+          </form>
+        </div>
+        <div class="divide-y divide-black/[0.05] dark:divide-white/[0.06] mb-3 text-sm">
+          {% for curr in currencies %}
+          <div class="py-2.5 flex items-center justify-between">
+            <span>{{ curr.code }} ({{ curr.symbol }}) · {{ curr.name }}</span>
+            <div class="flex items-center space-x-4 text-xs">
+              <span class="tnum text-[#6E6E73] dark:text-[#A1A1A6]">Rate: {{ curr.rate }}</span>
+              <form method="post" action="{% url 'settings_manage_taxonomy' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_currency">
+                <input type="hidden" name="id" value="{{ curr.id }}">
+                <button type="submit" class="text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#FF3B30] transition-colors">Delete</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <form method="post" action="{% url 'settings_manage_taxonomy' %}" class="grid grid-cols-4 gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_currency">
+          <input type="text" name="name" placeholder="Name" required class="apple-input h-9 px-3 text-xs">
+          <input type="text" name="code" placeholder="Code (CHF)" required class="apple-input h-9 px-3 text-xs">
+          <input type="text" name="symbol" placeholder="Symbol" required class="apple-input h-9 px-3 text-xs">
+          <button type="submit" class="apple-btn h-9 text-xs rounded-full bg-black/[0.05] dark:bg-white/[0.08] font-medium">+ Add</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <h2 class="text-sm font-semibold tracking-tight">Household Members</h2>
+        </div>
+        <div class="divide-y divide-black/[0.05] dark:divide-white/[0.06] mb-3 text-sm">
+          {% for member in household_members %}
+          <div class="py-2.5 flex items-center justify-between">
+            <span>{{ member.name }}{% if member.email %} ({{ member.email }}){% endif %}</span>
+            <form method="post" action="{% url 'settings_manage_taxonomy' %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_household">
+              <input type="hidden" name="id" value="{{ member.id }}">
+              <button type="submit" class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#FF3B30] transition-colors">Delete</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        <form method="post" action="{% url 'settings_manage_taxonomy' %}" class="flex gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_household">
+          <input type="text" name="name" placeholder="Member name" required class="apple-input flex-1 h-9 px-3.5 text-xs">
+          <button type="submit" class="apple-btn px-4 h-9 text-xs rounded-full bg-black/[0.05] dark:bg-white/[0.08] font-medium">+ Add</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <div class="space-y-6">
+    <section class="apple-card p-6 animate-spring-in stagger-2">
+      <h2 class="text-sm font-semibold tracking-tight pb-3 mb-4 border-b border-black/[0.06] dark:border-white/[0.08]">Notifications</h2>
+      <form method="post" action="{% url 'settings_save_notifications' %}" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] mb-1.5">Notify Days Before Renewal</label>
+          <input type="number" min="1" max="30" name="days_before" value="{{ notification_config.days_before }}" class="apple-input w-32 h-10 px-3.5 text-sm tnum">
+        </div>
+
+        <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-3">
+          <label class="inline-flex items-center space-x-2 text-xs font-medium">
+            <input type="checkbox" name="email_enabled" {% if notification_config.email_enabled %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Enable Email (SMTP)</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input type="text" name="smtp_host" value="{{ notification_config.smtp_host }}" placeholder="SMTP Host" class="apple-input h-9 px-3 text-xs">
+            <input type="number" name="smtp_port" value="{{ notification_config.smtp_port }}" placeholder="Port (587)" class="apple-input h-9 px-3 text-xs tnum">
+            <input type="text" name="smtp_username" value="{{ notification_config.smtp_username }}" placeholder="SMTP Username" class="apple-input h-9 px-3 text-xs">
+            <input type="password" name="smtp_password" placeholder="SMTP Password" class="apple-input h-9 px-3 text-xs">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
+          <label class="inline-flex items-center space-x-2 text-xs font-medium">
+            <input type="checkbox" name="discord_enabled" {% if notification_config.discord_enabled %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Enable Discord Webhook</span>
+          </label>
+          <input type="url" name="discord_webhook_url" value="{{ notification_config.discord_webhook_url }}" placeholder="https://discord.com/api/webhooks/..." class="apple-input w-full h-9 px-3 text-xs">
+        </div>
+
+        <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
+          <label class="inline-flex items-center space-x-2 text-xs font-medium">
+            <input type="checkbox" name="telegram_enabled" {% if notification_config.telegram_enabled %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Enable Telegram Bot</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input type="text" name="telegram_bot_token" value="{{ notification_config.telegram_bot_token }}" placeholder="Bot Token" class="apple-input h-9 px-3 text-xs">
+            <input type="text" name="telegram_chat_id" value="{{ notification_config.telegram_chat_id }}" placeholder="Chat ID" class="apple-input h-9 px-3 text-xs">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
+          <label class="inline-flex items-center space-x-2 text-xs font-medium">
+            <input type="checkbox" name="gotify_enabled" {% if notification_config.gotify_enabled %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Enable Gotify</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input type="url" name="gotify_url" value="{{ notification_config.gotify_url }}" placeholder="https://gotify.example.com" class="apple-input h-9 px-3 text-xs">
+            <input type="text" name="gotify_token" value="{{ notification_config.gotify_token }}" placeholder="App Token" class="apple-input h-9 px-3 text-xs">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
+          <label class="inline-flex items-center space-x-2 text-xs font-medium">
+            <input type="checkbox" name="pushover_enabled" {% if notification_config.pushover_enabled %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Enable Pushover</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input type="text" name="pushover_user_key" value="{{ notification_config.pushover_user_key }}" placeholder="User Key" class="apple-input h-9 px-3 text-xs">
+            <input type="text" name="pushover_api_token" value="{{ notification_config.pushover_api_token }}" placeholder="API Token" class="apple-input h-9 px-3 text-xs">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
+          <label class="inline-flex items-center space-x-2 text-xs font-medium">
+            <input type="checkbox" name="ntfy_enabled" {% if notification_config.ntfy_enabled %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Enable ntfy</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input type="url" name="ntfy_url" value="{{ notification_config.ntfy_url }}" placeholder="https://ntfy.sh" class="apple-input h-9 px-3 text-xs">
+            <input type="text" name="ntfy_topic" value="{{ notification_config.ntfy_topic }}" placeholder="Topic name" class="apple-input h-9 px-3 text-xs">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
+          <label class="inline-flex items-center space-x-2 text-xs font-medium">
+            <input type="checkbox" name="webhook_enabled" {% if notification_config.webhook_enabled %}checked{% endif %} class="rounded-md border-black/20 dark:border-white/20 text-[#0071E3]">
+            <span>Enable Custom Webhook</span>
+          </label>
+          <input type="url" name="webhook_url" value="{{ notification_config.webhook_url }}" placeholder="https://..." class="apple-input w-full h-9 px-3 text-xs">
+        </div>
+
+        <div class="pt-4 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+          <button type="submit" name="send_test" value="1" class="apple-btn px-4 py-2 text-xs rounded-full bg-black/[0.05] dark:bg-white/[0.08] font-medium">Save &amp; Test Notification</button>
+          <button type="submit" class="apple-btn px-5 py-2 text-xs font-medium bg-[#0071E3] dark:bg-[#0A84FF] text-white rounded-full shadow-sm">Save Notifications</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="apple-card p-6 space-y-5 animate-spring-in stagger-3">
+      <div class="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+        <h2 class="text-sm font-semibold tracking-tight">Data Import, Export &amp; Insights</h2>
+        <form method="post" action="{% url 'settings_manage_taxonomy' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="generate_recommendations">
+          <button type="submit" class="text-xs font-medium text-[#0071E3] dark:text-[#0A84FF] hover:underline">Generate Cost Insights</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="text-xs text-[#6E6E73] dark:text-[#A1A1A6] mb-2">Import from Wallos or MyKeep (JSON / CSV)</div>
+        <form method="post" action="{% url 'import_data' %}" enctype="multipart/form-data" class="flex items-center gap-3">
+          {% csrf_token %}
+          <input type="file" name="import_file" accept=".json,.csv" required class="flex-1 text-xs text-[#6E6E73] dark:text-[#A1A1A6] file:mr-3 file:py-1.5 file:px-3 file:border-0 file:rounded-lg file:bg-black/[0.06] dark:file:bg-white/[0.08] file:text-[#1D1D1F] dark:file:text-[#F5F5F7]">
+          <button type="submit" class="apple-btn px-4 py-1.5 text-xs font-medium rounded-full bg-black/[0.05] dark:bg-white/[0.08]">Import</button>
+        </form>
+      </div>
+
+      <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+        <span class="text-xs text-[#6E6E73] dark:text-[#A1A1A6]">Export all subscriptions &amp; wishlist</span>
+        <div class="space-x-2">
+          <a href="{% url 'export_data' %}?format=json" class="apple-btn inline-block px-3.5 py-1.5 text-xs font-medium rounded-full bg-black/[0.05] dark:bg-white/[0.08]">Export JSON</a>
+          <a href="{% url 'export_data' %}?format=csv" class="apple-btn inline-block px-3.5 py-1.5 text-xs font-medium rounded-full bg-black/[0.05] dark:bg-white/[0.08]">Export CSV</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" class="{% if user_settings and user_settings.theme == 'dark' %}dark{% else %}light{% endif %}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}MyKeep{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'Inter', 'system-ui', 'sans-serif'],
+            mono: ['SF Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    .tnum { font-variant-numeric: tabular-nums; }
+
+    /* Apple Cupertino Surface & Elevation Tokens */
+    :root {
+      --bg-canvas: #F5F5F7;
+      --bg-card: #FFFFFF;
+      --bg-subtle: #F2F2F7;
+      --text-primary: #1D1D1F;
+      --text-secondary: #6E6E73;
+      --text-muted: #86868B;
+      --border-hairline: rgba(0, 0, 0, 0.065);
+      --card-shadow: 0 2px 12px -2px rgba(0, 0, 0, 0.045), 0 1px 2px rgba(0, 0, 0, 0.025);
+      --card-shadow-hover: 0 10px 26px -4px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.03);
+      --accent-blue: #0071E3;
+    }
+
+    html.dark {
+      --bg-canvas: #09090B;
+      --bg-card: #161618;
+      --bg-subtle: #202024;
+      --text-primary: #F5F5F7;
+      --text-secondary: #A1A1A6;
+      --text-muted: #6E6E73;
+      --border-hairline: rgba(255, 255, 255, 0.08);
+      --card-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      --card-shadow-hover: 0 14px 32px -4px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      --accent-blue: #0A84FF;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .apple-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-hairline);
+      border-radius: 1.25rem;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.25s ease,
+                  background-color 0.3s ease;
+    }
+
+    .apple-card-interactive:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--card-shadow-hover);
+    }
+
+    .apple-glass {
+      background-color: rgba(255, 255, 255, 0.78);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    html.dark .apple-glass {
+      background-color: rgba(22, 22, 24, 0.76);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .apple-btn {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                  opacity 0.2s ease,
+                  background-color 0.2s ease,
+                  box-shadow 0.2s ease;
+    }
+    .apple-btn:active {
+      transform: scale(0.96);
+    }
+
+    .apple-input {
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: 0.75rem;
+      color: var(--text-primary);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+    .apple-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.18);
+      background-color: var(--bg-card);
+    }
+
+    /* Spring Entrance & Chart Animations */
+    @keyframes appleSpringUp {
+      0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.99);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes appleModalIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.94) translateY(8px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes appleDrawStroke {
+      0% {
+        stroke-dashoffset: 1200;
+      }
+      100% {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    @keyframes appleFadeArea {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes appleGrowBar {
+      0% { transform: scaleY(0.05); opacity: 0; }
+      100% { transform: scaleY(1); opacity: 1; }
+    }
+
+    @keyframes appleGrowWidth {
+      0% { transform: scaleX(0); }
+      100% { transform: scaleX(1); }
+    }
+
+    .animate-spring-in {
+      animation: appleSpringUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .stagger-1 { animation-delay: 0.04s; }
+    .stagger-2 { animation-delay: 0.08s; }
+    .stagger-3 { animation-delay: 0.12s; }
+    .stagger-4 { animation-delay: 0.16s; }
+    .stagger-5 { animation-delay: 0.20s; }
+
+    .animate-modal-card {
+      animation: appleModalIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .chart-line-draw {
+      stroke-dasharray: 1200;
+      stroke-dashoffset: 1200;
+      animation: appleDrawStroke 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+    }
+
+    .chart-area-fade {
+      animation: appleFadeArea 0.9s ease 0.2s both;
+    }
+
+    .chart-bar-grow {
+      transform-origin: bottom;
+      animation: appleGrowBar 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .chart-width-grow {
+      transform-origin: left;
+      animation: appleGrowWidth 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .donut-segment {
+      transition: stroke-width 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+      cursor: pointer;
+    }
+    .donut-segment:hover {
+      stroke-width: 11.5;
+    }
+  </style>
+  <script>
+    (function() {
+      var saved = localStorage.getItem('mykeep_theme');
+      var serverTheme = "{{ user_settings.theme|default:'light' }}";
+      var active = saved || serverTheme;
+      if (active === 'system') {
+        active = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      if (active === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      }
+    })();
+
+    function toggleTheme() {
+      var html = document.documentElement;
+      var next = html.classList.contains('dark') ? 'light' : 'dark';
+      html.classList.toggle('dark', next === 'dark');
+      html.classList.toggle('light', next === 'light');
+      localStorage.setItem('mykeep_theme', next);
+      fetch("{% url 'theme_toggle' %}", {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }).catch(function() {});
+    }
+  </script>
+</head>
+<body class="font-sans antialiased min-h-screen {% if user.is_authenticated %}pt-20 pb-20 md:pb-10{% endif %} selection:bg-[#0071E3]/15 dark:selection:bg-[#0A84FF]/25">
+
+  {% if user.is_authenticated %}
+  <header class="fixed top-0 inset-x-0 z-40 w-full apple-glass">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-6">
+        <a href="{% url 'dashboard' %}" class="inline-flex items-center space-x-2.5 text-base font-semibold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7] group">
+          <div class="w-8 h-8 rounded-xl bg-[#0071E3] dark:bg-[#0A84FF] text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M3 9h18M9 21V9"/></svg>
+          </div>
+          <span>MyKeep</span>
+        </a>
+
+        <nav class="hidden md:flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.05] text-xs font-medium">
+          <a href="{% url 'dashboard' %}" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all duration-200 {% if active_nav == 'dashboard' %}bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-sm{% else %}text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]{% endif %}">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+            <span>Dashboard</span>
+          </a>
+          <a href="{% url 'subscriptions' %}" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all duration-200 {% if active_nav == 'subscriptions' %}bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-sm{% else %}text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]{% endif %}">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            <span>Subscriptions</span>
+          </a>
+          <a href="{% url 'wishlist' %}" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all duration-200 {% if active_nav == 'wishlist' %}bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-sm{% else %}text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]{% endif %}">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            <span>Wishlist</span>
+          </a>
+          <a href="{% url 'calendar' %}" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all duration-200 {% if active_nav == 'calendar' %}bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-sm{% else %}text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]{% endif %}">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Calendar</span>
+          </a>
+          <a href="{% url 'stats' %}" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all duration-200 {% if active_nav == 'stats' %}bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-sm{% else %}text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]{% endif %}">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>Statistics</span>
+          </a>
+          <a href="{% url 'settings' %}" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all duration-200 {% if active_nav == 'settings' %}bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F5F5F7] shadow-sm{% else %}text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]{% endif %}">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings</span>
+          </a>
+        </nav>
+      </div>
+
+      <div class="flex items-center space-x-3 text-sm">
+        <span class="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#A1A1A6] tnum text-xs font-mono">{{ main_currency.code|default:"USD" }}</span>
+
+        <button type="button" onclick="toggleTheme()" title="Toggle Light/Dark Mode" class="apple-btn w-9 h-9 rounded-full bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]">
+          <svg class="w-4 h-4 hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="w-4 h-4 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        {% block header_action %}
+        <a href="{% url 'subscriptions' %}?add=1" class="apple-btn inline-flex items-center space-x-1.5 bg-[#0071E3] dark:bg-[#0A84FF] text-white px-4 py-1.5 rounded-full text-xs font-medium shadow-sm hover:opacity-95">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Add</span>
+        </a>
+        {% endblock %}
+
+        <a href="{% url 'logout' %}" title="Sign Out" class="apple-btn w-9 h-9 rounded-full bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  {% if messages %}
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-4 space-y-2">
+    {% for message in messages %}
+    <div class="apple-card px-5 py-3.5 text-sm flex items-center justify-between animate-spring-in">
+      <div class="flex items-center space-x-2.5">
+        <span class="w-2 h-2 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]"></span>
+        <span>{{ message }}</span>
+      </div>
+      <button type="button" onclick="this.parentElement.remove()" class="text-xs font-medium text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]">Dismiss</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if user.is_authenticated %}
+  <nav class="md:hidden fixed bottom-0 inset-x-0 apple-glass border-t border-black/[0.06] dark:border-white/[0.08] h-16 grid grid-cols-6 text-[11px] z-40">
+    <a href="{% url 'dashboard' %}" class="flex flex-col items-center justify-center space-y-0.5 {% if active_nav == 'dashboard' %}font-semibold text-[#0071E3] dark:text-[#0A84FF]{% else %}text-[#6E6E73] dark:text-[#A1A1A6]{% endif %}">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Home</span>
+    </a>
+    <a href="{% url 'subscriptions' %}" class="flex flex-col items-center justify-center space-y-0.5 {% if active_nav == 'subscriptions' %}font-semibold text-[#0071E3] dark:text-[#0A84FF]{% else %}text-[#6E6E73] dark:text-[#A1A1A6]{% endif %}">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      <span>Subs</span>
+    </a>
+    <a href="{% url 'wishlist' %}" class="flex flex-col items-center justify-center space-y-0.5 {% if active_nav == 'wishlist' %}font-semibold text-[#0071E3] dark:text-[#0A84FF]{% else %}text-[#6E6E73] dark:text-[#A1A1A6]{% endif %}">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      <span>Wishlist</span>
+    </a>
+    <a href="{% url 'calendar' %}" class="flex flex-col items-center justify-center space-y-0.5 {% if active_nav == 'calendar' %}font-semibold text-[#0071E3] dark:text-[#0A84FF]{% else %}text-[#6E6E73] dark:text-[#A1A1A6]{% endif %}">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Calendar</span>
+    </a>
+    <a href="{% url 'stats' %}" class="flex flex-col items-center justify-center space-y-0.5 {% if active_nav == 'stats' %}font-semibold text-[#0071E3] dark:text-[#0A84FF]{% else %}text-[#6E6E73] dark:text-[#A1A1A6]{% endif %}">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Stats</span>
+    </a>
+    <a href="{% url 'settings' %}" class="flex flex-col items-center justify-center space-y-0.5 {% if active_nav == 'settings' %}font-semibold text-[#0071E3] dark:text-[#0A84FF]{% else %}text-[#6E6E73] dark:text-[#A1A1A6]{% endif %}">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </a>
+  </nav>
+  {% endif %}
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+services:
+  mykeep:
+    build: .
+    container_name: mykeep
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DEBUG: ${DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
