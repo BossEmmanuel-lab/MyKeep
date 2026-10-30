@@ -1,36 +1,43 @@
-# MyKeep
+# MyKeep 📦
 
-MyKeep is an ultra-lightweight, minimalist personal subscription and wishlist tracker inspired by Wallos, built with Django and SQLite (WAL mode) in a single self-contained container.
+MyKeep is an ultra-lightweight, self-hosted personal subscription and wishlist tracker built with Django and SQLite (WAL mode) designed to run as a single, self-contained container.
 
-## Key Features & Improvements Over Wallos
-- **Single-Container Lightweight Architecture:** Just like Wallos, MyKeep requires **zero external database, object storage, or cache servers**. It uses SQLite in WAL (`Write-Ahead Logging`) mode (`./data/mykeep.db`), local media volume storage (`./media`) for uploaded wishlist photos and subscription logos, and in-process memory caching (`LocMemCache`).
-- **Minimalist, Responsive Design:** Flat monochrome Light and Dark modes (`#FFFFFF` / `#0A0A0A`) with crisp 1px borders, tabular numbers, desktop top bar, and mobile bottom navigation—free of gradients, glowing shadows, or cluttered status bars/pills.
-- **Wishlist Tracker:** Keep track of items you want to buy (e.g., a MacBook Pro or Studio Display) by pasting an image link URL or uploading an image file, along with price, currency, product store URL, priority, target date, saved amount, and notes.
-- **Accurate Multi-Currency & Payment History:** Every subscription renewal records a historical `SubscriptionPaymentRecord` and converts foreign currencies accurately into your primary currency using live Frankfurter (free, no API key required) or Fixer exchange rates.
-- **1-Click Wallos Import / Export & iCal Feed:** Import existing Wallos JSON or CSV exports directly in Settings, export your data anytime, or subscribe to the RFC 5545 `.ics` calendar feed.
+## ✨ Key Features
 
-## Quick Start (Docker Compose — Single Container)
+- **Single-Container Lightweight Architecture:** Zero external database, object storage, or Redis/cache server dependencies. Uses SQLite in WAL (`Write-Ahead Logging`) mode (`./data/mykeep.db`), local media volume storage (`./media`) for photos and logos, and fast in-memory caching.
+- **Clean, Minimalist Interface:** Thoughtful monochrome Light and Dark themes (`#FFFFFF` / `#0A0A0A`) with crisp borders, tabular numbers, desktop top bar, and mobile navigation bar—zero clutter, distraction-free.
+- **Smart Wishlist Tracker:** Track purchases you are planning or saving toward with image attachments, priority tags, target purchase dates, price, savings progress, and direct store links.
+- **Accurate Multi-Currency & Payment History:** Track recurring costs across currencies with automated foreign exchange rate updates via Frankfurter and Fixer. Every renewal maintains complete historical payment records.
+- **Data Portability & Calendar Sync:** Export or import your data anytime via standard JSON and CSV, and sync renewal schedules directly into Apple Calendar, Google Calendar, or Outlook via RFC 5545 `.ics` feeds.
+
+## 🚀 Quick Start (Docker Compose)
 
 ```bash
 cp .env.example .env
 docker compose up -d --build
 ```
 
-Open `http://localhost:8000` in your browser and create your account. Your database and uploaded images are persisted on host folders `./data` and `./media`.
+Access the app at `http://localhost:8000`. Persistent database and uploaded media are mapped to local `./data` and `./media` directories.
 
-## Local Development
+## 🛠️ Local Development
 
 ```bash
-./venv/bin/pip install -r requirements.txt
-./venv/bin/python manage.py migrate
-./venv/bin/python manage.py test
-./venv/bin/python manage.py runserver
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py test
+python manage.py runserver
 ```
 
-## Scheduled Daily Tasks
+## ⏰ Scheduled Daily Tasks
 
-Run daily via cron to auto-advance due subscriptions, refresh exchange rates, and dispatch notifications:
+Run daily via cron to auto-advance due subscriptions, refresh exchange rates, and trigger renewal reminders:
 
 ```bash
 python manage.py run_daily_tasks
 ```
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE.md).
